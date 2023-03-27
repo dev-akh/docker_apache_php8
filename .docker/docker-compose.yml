@@ -1,0 +1,64 @@
+version: '3.6'
+services:
+  web_app:
+    build:
+      context: '.'
+      args:
+        uid: ${HOST_UID}
+        app_name: ${APP_NAME}
+    container_name: ${APP_NAME}
+    environment:
+      - APACHE_RUN_USER=#${HOST_UID}
+      - APACHE_RUN_GROUP=#${HOST_UID}
+    volumes:
+      - ./:/var/www/html/${APP_NAME}
+    ports:
+      -  ${WEB_PORT_HTTP}:80
+    links:
+      - mysql_db
+    depends_on:
+            - mysql_db
+    networks:
+      backend:
+        aliases:
+          - web-app
+  mysql_db:
+    image: mysql
+    restart: always
+    container_name: ${APP_NAME}_DB
+    volumes:
+      - ./run/var:/var/lib/mysql
+      - ./run/dump/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      -  ${DB_EXTERNAL_PORT}:${DB_PORT}
+    expose:
+      - "${DB_PORT}"
+    environment:
+      - MYSQL_ROOT_PASSWORD=admin
+      - MYSQL_DATABASE=${DB_DATABASE}
+      - MYSQL_USER=${DB_USERNAME}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+    networks:
+      backend:
+        aliases:
+          - mysql_db
+  phpmyadmin:
+        image: phpmyadmin/phpmyadmin
+        container_name: ${APP_NAME}_PMA
+        depends_on:
+            - mysql_db
+        links:
+            - mysql_db
+        ports:
+            - ${PMAHOST_PORT}:80
+        environment:
+            PMA_HOST: mysql_db
+            PMA_PORT: ${DB_PORT}
+        networks:
+          backend:
+            aliases:
+              - phpmyadmin
+networks:
+  backend:
+    name: backend-network
